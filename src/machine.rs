@@ -114,6 +114,7 @@ impl Machine {
         false
     }
 
+    #[allow(dead_code)]
     pub fn tape_str(&self, left_padding: usize) -> String {
         if left_padding < self.cells_below_zero {
             panic!("Out of space to print");

@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::machine::{MachineDescription, Machine, State};
 
-const MAX_STEPS: usize = 1_000;
+pub const MAX_STEPS: usize = 1_000;
 
 /// Detects machines that visit the exact same state (tape + head + machine state)
 /// twice, and are therefore in a loop. Does so in the stupidest possible manner,

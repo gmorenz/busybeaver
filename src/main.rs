@@ -8,44 +8,19 @@ fn main() {
     println!("Checking index is sorted");
     undecided_index.assert_sorted();
 
-    println!("Running cyclers decider - on undecided set");
-    let undecided_time_count = db.header.undecided_time_count;
-    for index in undecided_index.iter().take_while(|&idx| idx < undecided_time_count) {
-        let description = db.read(index).expect("Failed to read machine");
-
-        if deciders::cyclers::decide(description) {
-            panic!("Unexpected new decision");
-        }
-    }
-
     println!("Running cyclers decider - on full set");
-    let mut count = 0;
-    for index in 0.. db.header.undecided_time_count {
-        let description = db.read(index).expect("Failed to read machine");
-
-        if deciders::cyclers::decide(description) {
-            count += 1;
-        }
-    }
+    let undecided_time_count = db.header.undecided_time_count;
+    let iter = (0.. undecided_time_count)
+        .filter(|&id| {
+            let description = db.read(id).expect("Failed to read machine");
+            deciders::cyclers::decide(description)
+        });
+    let count = db::write_index(
+        format!("cyclers-index-time-{}-maxIndex-{}",
+            deciders::cyclers::MAX_STEPS,
+            undecided_time_count,
+        ),
+        iter
+    ).unwrap();
     println!("Decided {count}");
-
-    // println!("Running something");
-    // for index in undecided_index.iter().take(5) {
-    //     let description = db.read(index).expect("Failed to read machine");
-
-    //     for transition in description.transitions {
-    //         println!("{transition:?}");
-    //     }
-
-    //     let mut machine = machine::Machine::new(description);
-
-    //     println!("{:?} {}", machine.state, machine.tape_str(10));
-    //     for _ in 0..10 {
-    //         if machine.step() {
-    //             println!("Halted");
-    //             break;
-    //         }
-    //         println!("{:?} {}", machine.state, machine.tape_str(10));
-    //     }
-    // }
 }

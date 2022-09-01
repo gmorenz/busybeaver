@@ -1,6 +1,7 @@
 use std::io::ErrorKind;
 
 use std::io::SeekFrom;
+use std::io::Write;
 use std::iter;
 use std::mem::replace;
 
@@ -111,6 +112,18 @@ impl<D: Seek + Read> Index<D> {
             val > replace(&mut last, val)
         }))
     }
+}
+
+/// Returns the number of records written on success
+pub fn write_index(path: impl AsRef<Path>, iter: impl Iterator<Item=u32>) -> Result<usize> {
+    let mut file = File::create(path)?;
+    let mut i = 0;
+    for item in iter {
+        let bytes = item.to_be_bytes();
+        file.write_all(&bytes)?;
+        i += 1;
+    }
+    Ok(i)
 }
 
 pub fn load_default() -> (Db<File>, Index<File>) {
