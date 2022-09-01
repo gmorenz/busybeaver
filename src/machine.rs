@@ -21,7 +21,7 @@ pub enum NewState {
 }
 
 #[repr(u8)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum State {
     A = 1,
     B = 2,

@@ -2,6 +2,7 @@ use std::io::ErrorKind;
 
 use std::io::SeekFrom;
 use std::iter;
+use std::mem::replace;
 
 use crate::machine::MachineDescription;
 
@@ -74,8 +75,6 @@ impl<D: Seek + Read> Db<D> {
         let machine_bytes = &mut [0; 30];
         self.data.read_exact(machine_bytes)?;
 
-        println!("Machine bytes: {:x?}", machine_bytes);
-
         Ok(MachineDescription::from_bytes(machine_bytes).clone())
     }
 }
@@ -103,4 +102,28 @@ impl<D: Seek + Read> Index<D> {
             }
         })
     }
+
+    #[allow(dead_code)]
+    pub fn assert_sorted(&mut self) {
+        let mut iter = self.iter();
+        let mut last = iter.next().expect("Empty index!?");
+        assert!(iter.all(|val| {
+            val > replace(&mut last, val)
+        }))
+    }
+}
+
+pub fn load_default() -> (Db<File>, Index<File>) {
+    let db = Db::open("all_5_states_undecided_machines_with_global_header")
+        .expect("Failed to open db");
+
+    let undecided_index = Index::open("bb5_undecided_index").expect("Failed to open index");
+
+    (db, undecided_index)
+}
+
+#[test]
+fn check_sorted() {
+    let (_, mut index) = load_default();
+    index.assert_sorted();
 }
