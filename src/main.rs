@@ -1,4 +1,4 @@
-use std::{io::{Seek, Read, Result, SeekFrom}, path::Path, fs::File, mem};
+use std::{io::{Seek, Read, Result, SeekFrom, ErrorKind}, path::Path, fs::File, mem, iter};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -11,6 +11,10 @@ struct Header {
 
 struct Db<D: Seek + Read> {
     header: Header,
+    data: D,
+}
+
+struct Index<D: Seek + Read> {
     data: D,
 }
 
@@ -40,7 +44,9 @@ impl Db<File> {
             data
         })
     }
+}
 
+impl<D: Seek + Read> Db<D> {
     fn read(&mut self, tm: u32) -> Result<MachineDescription> {
         if tm >= self.header.undecided_total {
             panic!("Out of boudns read, tm index: {tm} but we only have {} machines", self.header.undecided_total);
@@ -53,6 +59,27 @@ impl Db<File> {
         println!("Machine bytes: {:x?}", machine_bytes);
 
         Ok(MachineDescription::from_bytes(machine_bytes).clone())
+    }
+}
+
+impl Index<File> {
+    fn open(path: impl AsRef<Path>) -> Result<Index<File>> {
+        Ok(Index{ data: File::open(path)? })
+    }
+}
+
+impl<D: Seek + Read> Index<D> {
+    fn iter(&mut self) -> impl Iterator<Item = u32> + '_ {
+        self.data.seek(SeekFrom::Start(0)).expect("Failed to seek index");
+
+        iter::from_fn(|| {
+            let mut buf = [0;  4];
+            match self.data.read_exact(&mut buf) {
+                Ok(()) => Some(u32::from_be_bytes(buf)),
+                Err(e) if e.kind() == ErrorKind::UnexpectedEof => None,
+                Err(e) => panic!("Failed to read index: {e}"),
+            }
+        })
     }
 }
 
@@ -203,21 +230,26 @@ fn main() {
     let mut db = Db::open("all_5_states_undecided_machines_with_global_header")
         .expect("Failed to open db");
 
-    let description = db.read(44394115)
-        .expect("Failed to read machine");
+    let mut undecided_index = Index::open("bb5_undecided_index")
+        .expect("Failed to open index");
 
-    for transition in description.transitions {
-        println!("{transition:?}");
-    }
+    for index in undecided_index.iter().take(5) {
+        let description = db.read(index)
+            .expect("Failed to read machine");
 
-    let mut machine = Machine::new(description);
-
-    println!("{:?} {}", machine.state, machine.tape_str(1));
-    for _ in 0.. 100 {
-        if machine.step() {
-            println!("Halted");
-            break
+        for transition in description.transitions {
+            println!("{transition:?}");
         }
-        println!("{:?} {}", machine.state, machine.tape_str(1));
+
+        let mut machine = Machine::new(description);
+
+        println!("{:?} {}", machine.state, machine.tape_str(10));
+        for _ in 0.. 10 {
+            if machine.step() {
+                println!("Halted");
+                break
+            }
+            println!("{:?} {}", machine.state, machine.tape_str(10));
+        }
     }
 }
