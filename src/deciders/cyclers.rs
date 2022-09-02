@@ -42,7 +42,7 @@ impl From<&Machine> for StoredState {
         let tape_start = leading_zeros as i32 - machine.cells_below_zero as i32;
         let tape = machine.tape[leading_zeros..].to_vec();
         // Can't overflow, as above.
-        let head = machine.head as i32 - machine.cells_below_zero as i32;
+        let head = machine.head_offset as i32 - machine.cells_below_zero as i32;
 
         StoredState {
             tape,

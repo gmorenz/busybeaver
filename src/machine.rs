@@ -2,7 +2,7 @@ use std::mem;
 
 #[allow(dead_code)] // False positive
 #[repr(u8)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Dir {
     R = 0,
     L = 1,
@@ -41,7 +41,7 @@ pub struct Transition {
 #[repr(C)]
 #[derive(Clone, Debug)]
 pub struct MachineDescription {
-    pub(crate) transitions: [Transition; 10],
+    pub transitions: [Transition; 10],
 }
 
 impl MachineDescription {
@@ -52,11 +52,16 @@ impl MachineDescription {
 
         unsafe { &*(bytes.as_ptr() as *const MachineDescription) }
     }
+
+    pub fn transition(&self, state: State, cell: bool) -> Transition {
+        let transition_index = (state as usize - 1) * 2 + cell as usize;
+        self.transitions[transition_index]
+    }
 }
 
 pub struct Machine {
     pub description: MachineDescription,
-    pub head: usize,
+    pub head_offset: usize,
     pub cells_below_zero: usize,
     pub state: State,
     pub tape: Vec<bool>,
@@ -79,35 +84,41 @@ impl Machine {
     pub fn new(description: MachineDescription) -> Self {
         Machine {
             description,
-            head: 0,
+            head_offset: 0,
             cells_below_zero: 0,
             state: State::A,
             tape: vec![false],
         }
     }
 
+    pub fn head(&self) -> i32 {
+        self.head_offset as i32 - self.cells_below_zero as i32
+    }
+
+    pub fn transition(&self) -> Transition {
+        self.description.transition(self.state, self.tape[self.head_offset])
+    }
+
     /// Returns true if the machine has halted
     pub fn step(&mut self) -> bool {
-        let transition_index = (self.state as usize - 1) * 2 + self.tape[self.head] as usize;
-
-        let transition = self.description.transitions[transition_index];
+        let transition = self.transition();
         self.state = match transition.state() {
             Some(s) => s,
             None => return true,
         };
 
-        self.tape[self.head] = transition.out;
-        match (self.head, transition.dir) {
+        self.tape[self.head_offset] = transition.out;
+        match (self.head_offset, transition.dir) {
             (0, Dir::L) => {
                 self.tape.insert(0, false);
                 self.cells_below_zero += 1;
             }
-            (head, Dir::L) => self.head = head - 1,
-            (head, Dir::R) => {
-                if head + 1 == self.tape.len() {
+            (_, Dir::L) => self.head_offset -= 1,
+            (_, Dir::R) => {
+                if self.head_offset + 1 == self.tape.len() {
                     self.tape.push(false);
                 }
-                self.head = head + 1;
+                self.head_offset += 1;
             }
         }
 
@@ -126,7 +137,7 @@ impl Machine {
             out.push('_');
         }
         for (i, val) in self.tape.iter().copied().enumerate() {
-            if i == self.head {
+            if i == self.head_offset {
                 let mut state_char = format!("{:?}", self.state);
                 if !val {
                     state_char = state_char.to_lowercase();
