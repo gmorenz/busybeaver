@@ -96,7 +96,8 @@ impl Machine {
     }
 
     pub fn transition(&self) -> Transition {
-        self.description.transition(self.state, self.tape[self.head_offset])
+        self.description
+            .transition(self.state, self.tape[self.head_offset])
     }
 
     /// Returns true if the machine has halted

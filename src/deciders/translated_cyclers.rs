@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::machine::{MachineDescription, Machine, Dir, State};
+use crate::machine::{Dir, Machine, MachineDescription, State};
 
 pub const MAX_STEPS: usize = 10000;
 
@@ -20,15 +20,12 @@ pub fn decide(descr: MachineDescription) -> bool {
 
     // This is a map from (Dir, State) to a list of stored snapshots from previous times
     // we added a new
-    let breakpoint_set_index = |dir: Dir, state: State| {
-        dir as usize * 5 + (state as usize - 1)
-    };
+    let breakpoint_set_index = |dir: Dir, state: State| dir as usize * 5 + (state as usize - 1);
     let mut breakpoint_sets: [Vec<StoredSnapshot>; 10] = [(); 2 * 5].map(|_| Vec::new());
-
 
     let mut head_history = vec![];
 
-    for step in 0.. MAX_STEPS {
+    for step in 0..MAX_STEPS {
         head_history.push(machine.head());
 
         let transition = machine.transition();
@@ -57,16 +54,24 @@ pub fn decide(descr: MachineDescription) -> bool {
                 let current_range;
                 match transition.dir {
                     Dir::R => {
-                        let leftmost = head_history[bp_snapshot.step..].iter().copied().min().unwrap();
+                        let leftmost = head_history[bp_snapshot.step..]
+                            .iter()
+                            .copied()
+                            .min()
+                            .unwrap();
                         let delta = current_snapshot.head - leftmost;
-                        prev_range = bp_snapshot.head - delta.. bp_snapshot.head;
-                        current_range = leftmost.. current_snapshot.head;
+                        prev_range = bp_snapshot.head - delta..bp_snapshot.head;
+                        current_range = leftmost..current_snapshot.head;
                     }
                     Dir::L => {
-                        let rightmost = head_history[bp_snapshot.step..].iter().copied().max().unwrap();
+                        let rightmost = head_history[bp_snapshot.step..]
+                            .iter()
+                            .copied()
+                            .max()
+                            .unwrap();
                         let delta = rightmost - current_snapshot.head;
-                        prev_range = bp_snapshot.head + 1 .. bp_snapshot.head + 1 + delta;
-                        current_range = current_snapshot.head + 1.. rightmost + 1;
+                        prev_range = bp_snapshot.head + 1..bp_snapshot.head + 1 + delta;
+                        current_range = current_snapshot.head + 1..rightmost + 1;
                     }
                 }
 
@@ -117,24 +122,15 @@ impl StoredSnapshot {
         if start < 0 || end as usize > self.tape.len() {
             return None;
         }
-        Some(&self.tape[start as usize.. end as usize])
+        Some(&self.tape[start as usize..end as usize])
     }
 }
-
 
 #[test]
 fn test_positive_results() {
     let (mut db, _) = crate::db::load_default();
     let indices = [
-        32510779,
-        45010518,
-        14427007,
-        14643029, // Grows left
-        15167997,
-        50491158, // Grows left
-        59645887,
-        31141863,
-        28690248
+        32510779, 45010518, 14427007, 14643029, 15167997, 50491158, 59645887, 31141863, 28690248,
     ];
 
     for index in indices {
@@ -153,14 +149,7 @@ fn test_positive_results() {
 fn test_large_positive_results() {
     let (mut db, _) = crate::db::load_default();
     let indices = [
-        46965866,
-		74980673, // Grows left
-		88062418,
-		59090563,
-		76989562, // Grows left
-		46546554, // Grows left
-		36091834,
-		58966114
+        46965866, 74980673, 88062418, 59090563, 76989562, 46546554, 36091834, 58966114,
     ];
 
     for index in indices {
@@ -173,20 +162,8 @@ fn test_large_positive_results() {
 fn test_negative_results() {
     let (mut db, _) = crate::db::load_default();
     let indices = [
-        14017021,
-        13206000,
-        8107478,
-        14053644,
-        14276172,
-        78082807,
-        83293270,
-        1201055,
-        9354848,
-        6369968,
-        5795478,
-        12745999,
-        13578663,
-        23400034
+        14017021, 13206000, 8107478, 14053644, 14276172, 78082807, 83293270, 1201055, 9354848,
+        6369968, 5795478, 12745999, 13578663, 23400034,
     ];
 
     for index in indices {

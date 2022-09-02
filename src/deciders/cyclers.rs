@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::machine::{MachineDescription, Machine, State};
+use crate::machine::{Machine, MachineDescription, State};
 
 pub const MAX_STEPS: usize = 1_000;
 
@@ -12,15 +12,14 @@ pub fn decide(description: MachineDescription) -> bool {
     let mut set = HashSet::new();
 
     let mut machine = Machine::new(description);
-    for _ in 0..= MAX_STEPS {
+    for _ in 0..=MAX_STEPS {
         if !set.insert(StoredState::from(&machine)) {
             // Set already contianed the state
-            return true
+            return true;
         }
 
         machine.step();
     }
-
 
     false
 }
@@ -68,20 +67,8 @@ fn test_finds_cyclers() {
 fn test_negative_results() {
     let (mut db, _) = crate::db::load_default();
     let indices = [
-        14017021,
-        13206000,
-        8107478,
-        14053644,
-        14276172,
-        78082807,
-        83293270,
-        1201055,
-        9354848,
-        6369968,
-        5795478,
-        12745999,
-        13578663,
-        23400034
+        14017021, 13206000, 8107478, 14053644, 14276172, 78082807, 83293270, 1201055, 9354848,
+        6369968, 5795478, 12745999, 13578663, 23400034,
     ];
 
     for index in indices {

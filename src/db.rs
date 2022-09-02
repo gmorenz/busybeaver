@@ -108,14 +108,12 @@ impl<D: Seek + Read> Index<D> {
     pub fn assert_sorted(&mut self) {
         let mut iter = self.iter();
         let mut last = iter.next().expect("Empty index!?");
-        assert!(iter.all(|val| {
-            val > replace(&mut last, val)
-        }))
+        assert!(iter.all(|val| { val > replace(&mut last, val) }))
     }
 }
 
 /// Returns the number of records written on success
-pub fn write_index(path: impl AsRef<Path>, iter: impl Iterator<Item=u32>) -> Result<usize> {
+pub fn write_index(path: impl AsRef<Path>, iter: impl Iterator<Item = u32>) -> Result<usize> {
     let mut file = File::create(path)?;
     let mut i = 0;
     for item in iter {
@@ -127,8 +125,8 @@ pub fn write_index(path: impl AsRef<Path>, iter: impl Iterator<Item=u32>) -> Res
 }
 
 pub fn load_default() -> (Db<File>, Index<File>) {
-    let db = Db::open("all_5_states_undecided_machines_with_global_header")
-        .expect("Failed to open db");
+    let db =
+        Db::open("all_5_states_undecided_machines_with_global_header").expect("Failed to open db");
 
     let undecided_index = Index::open("bb5_undecided_index").expect("Failed to open index");
 
