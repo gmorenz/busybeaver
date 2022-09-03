@@ -171,7 +171,7 @@ impl MachineDescription {
         // assert_eq!(map_next, 5, "Wow, some state is unreachable in {map:?}");
 
 
-        let transitions = std::array::from_fn(|i| {
+        let mut transitions = std::array::from_fn(|i| {
             let new_state_idx = i / 2;
             let old_state = map[new_state_idx];
             if let Some(old_state) = old_state.and_then(|x| x.state()) {
@@ -193,6 +193,15 @@ impl MachineDescription {
             }
 
         });
+
+        if transitions[0].dir == Dir::R {
+            for transition in &mut transitions {
+                transition.dir = match transition.dir {
+                    Dir::R => Dir::L,
+                    Dir::L => Dir::R,
+                }
+            }
+        }
 
         // println!("new");
         // for row in transitions {
