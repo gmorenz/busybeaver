@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 use crate::db::Index;
 
@@ -7,9 +7,118 @@ pub mod deciders;
 mod machine;
 
 fn main() {
-    // Primitive method of choosing what to run by modifying main
-    run_cyclers();
-    run_cyclers_translated();
+    search_for_alternating_states();
+}
+
+fn search_for_alternating_states() {
+    use machine::State::*;
+    let (mut db, mut index) = db::load_default();
+
+    let mut descrs = HashMap::new();
+    for id in index.iter() {
+        let descr = db.read(id).unwrap();
+        // assert_eq!(descr, descr.normalize());
+        assert!(descrs.insert(descr.normalize(), id).is_none());
+    }
+    println!("Built map of {} machines", descrs.len());
+
+    let mut deduped_count = 0;
+    let mut cycler_count = 0;
+    let mut translated_cycler_count = 0;
+    let mut missing_count = 0;
+    let mut less_than_5 = 0;
+
+    for id in index.iter() {
+        let descr = db.read(id).unwrap();
+        for state in [A, B, C, D, E] {
+            for bit in [false, true] {
+                let t1 = descr.transition(state, bit);
+                let t1state = match t1.state() {
+                    Some(s)  => s,
+                    None => continue,
+                };
+                let t2f = descr.transition(t1state, false);
+                let t2t = descr.transition(t1state, true);
+
+                if t2t.state().is_none() && t2f.state().is_none() {
+                    // Never happens
+                    println!("Machine {id} has a redundant transition that terminates on its next step");
+                }
+
+                if t2t.state().is_none() || t2f.state().is_none() {
+                    // We sometimes terminate here
+                    continue
+                }
+
+                if t2t.dir == t1.dir || t2f.dir == t1.dir {
+                    // We at least sometimes go off into the distance
+                    continue;
+                }
+
+                if t2t.out == false || t2f.out == true {
+                    // Well, at least we change a bit?
+                    // Maybe think more about this case
+                    continue;
+                }
+
+                if t2t.state() != t2f.state() {
+                    continue;
+                }
+
+                let boomerang_state = t2t.state().unwrap();
+                let boomerang_transition = descr.transition(boomerang_state, t1.out);
+                let mut boomerang_descr = descr.clone();
+                boomerang_descr.set_transition(state, bit, boomerang_transition);
+
+                if boomerang_descr.has_less_than_5_states() {
+                    less_than_5 += 1;
+                }
+                else if descrs.contains_key(&boomerang_descr.normalize()) {
+                    deduped_count += 1;
+                } else if deciders::cyclers::decide(boomerang_descr.clone()) {
+                    cycler_count += 1;
+                } else if deciders::translated_cyclers::decide::<10_000>(boomerang_descr.clone()) {
+                    // dbg!(deciders::translated_cyclers::decide_verbose(boomerang_descr.clone()));
+
+                    println!("Original descr");
+                    for row in descr.transitions {
+                        println!("{:?}", row);
+                    }
+                    println!("New descr");
+                    for row in boomerang_descr.transitions {
+                        println!("{:?}", row);
+                    }
+
+                    println!("Origin execution");
+                    let mut machine = machine::Machine::new(descr.clone());
+                    for i in 0.. 40 {
+                        println!("{}", machine.tape_str(10));
+                        machine.step();
+                    }
+
+                    println!("New execution");
+                    let mut machine = machine::Machine::new(boomerang_descr.clone());
+                    for i in 0.. 40 {
+                        println!("{}", machine.tape_str(50));
+                        machine.step();
+                    }
+
+                    panic!();
+                    translated_cycler_count += 1;
+                } else {
+                    missing_count += 1;
+                }
+                // let mut new_descr = descr.clone();
+
+                // let (t2t_state, t2f_state) = match (t2t.state(), t2f.state()) {
+                //     (Some(s1), Some(s2)) => (s1, s2),
+                //     _ => continue
+                // };
+
+            }
+        }
+    }
+    println!("dedup {deduped_count} cyclers {cycler_count} translated_cylers: {translated_cycler_count} missing: {missing_count} less_than_5: {less_than_5}");
 }
 
 #[allow(dead_code)]

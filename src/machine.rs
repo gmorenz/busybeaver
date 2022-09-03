@@ -2,7 +2,7 @@ use std::mem;
 
 #[allow(dead_code)] // False positive
 #[repr(u8)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Dir {
     R = 0,
     L = 1,
@@ -10,7 +10,7 @@ pub enum Dir {
 
 #[allow(dead_code)] // False positive
 #[repr(u8)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum NewState {
     Undef = 0,
     A = 1,
@@ -31,7 +31,7 @@ pub enum State {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Transition {
     pub out: bool,
     pub dir: Dir,
@@ -39,9 +39,49 @@ pub struct Transition {
 }
 
 #[repr(C)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct MachineDescription {
     pub transitions: [Transition; 10],
+}
+
+impl State {
+    fn index(self) -> usize {
+        self as usize - 1
+    }
+}
+
+impl NewState {
+    fn state(self) -> Option<State> {
+        match self {
+            NewState::Undef => None,
+            NewState::A => Some(State::A),
+            NewState::B => Some(State::B),
+            NewState::C => Some(State::C),
+            NewState::D => Some(State::D),
+            NewState::E => Some(State::E),
+        }
+    }
+
+    fn from_state_idx(idx: usize) -> Self {
+        match idx {
+            0 => NewState::A,
+            1 => NewState::B,
+            2 => NewState::C,
+            3 => NewState::D,
+            4 => NewState::E,
+            _ => unreachable!(),
+        }
+    }
+
+    fn from_state(state: State) -> NewState {
+        match state {
+            State::A => NewState::A,
+            State::B => NewState::B,
+            State::C => NewState::C,
+            State::D => NewState::D,
+            State::E => NewState::E,
+        }
+    }
 }
 
 impl MachineDescription {
@@ -57,6 +97,110 @@ impl MachineDescription {
         let transition_index = (state as usize - 1) * 2 + cell as usize;
         self.transitions[transition_index]
     }
+
+    pub fn set_transition(&mut self, state: State, cell: bool, transition: Transition) {
+        let transition_index = (state as usize - 1) * 2 + cell as usize;
+        self.transitions[transition_index] = transition;
+    }
+
+    pub fn has_less_than_5_states(&self) -> bool {
+        let mut map = [None; 5];
+        let mut map_next = 0;
+
+        fn make_map_recuirsive(map: &mut [Option<NewState>; 5], map_next: &mut usize, original: &MachineDescription, state: State) {
+            if map.iter().any(|&x| x == Some(NewState::from_state(state))) {
+                return
+            }
+
+            map[*map_next] = Some(NewState::from_state(state));
+            *map_next += 1;
+
+            if let Some(next_state) = original.transition(state, false).state() {
+                make_map_recuirsive(map, map_next, original, next_state)
+            }
+            if let Some(next_state) = original.transition(state, true).state() {
+                make_map_recuirsive(map, map_next, original, next_state)
+            }
+        };
+
+        make_map_recuirsive(&mut map, &mut map_next, self, State::A);
+
+        map_next != 5
+    }
+
+    pub fn normalize(&self) -> MachineDescription {
+        // println!("");
+        // Map new state -> old state
+        let mut map = [None; 5];
+        let mut map_next = 0;
+
+        fn make_map_recuirsive(map: &mut [Option<NewState>; 5], map_next: &mut usize, original: &MachineDescription, state: State) {
+            if map.iter().any(|&x| x == Some(NewState::from_state(state))) {
+                return
+            }
+
+            map[*map_next] = Some(NewState::from_state(state));
+            *map_next += 1;
+
+            if let Some(next_state) = original.transition(state, false).state() {
+                make_map_recuirsive(map, map_next, original, next_state)
+            }
+            if let Some(next_state) = original.transition(state, true).state() {
+                make_map_recuirsive(map, map_next, original, next_state)
+            }
+        };
+
+        make_map_recuirsive(&mut map, &mut map_next, self, State::A);
+
+        if map_next != 5 {
+            // println!("map {map:?}");
+            // for row in self.transitions {
+            //     println!("{:?}", row);
+            // }
+
+            // Some states are actually unreachable, it's fine to replace them with Undef.
+            // TODO: Consider some method of filtering these instead?
+            // They happen when we're constructing simplified machines.
+            for i in 0.. 5 {
+                if map[i] == None {
+                    map[i] = Some(NewState::Undef)
+                }
+            }
+        }
+        // TMP
+        // assert_eq!(map_next, 5, "Wow, some state is unreachable in {map:?}");
+
+
+        let transitions = std::array::from_fn(|i| {
+            let new_state_idx = i / 2;
+            let old_state = map[new_state_idx];
+            if let Some(old_state) = old_state.and_then(|x| x.state()) {
+                let bit = i % 2 == 1;
+                let old_transition = self.transition(old_state, bit);
+                let new_transition_state = old_transition.state().map(|transit_state| {
+                    map[transit_state.index()].unwrap()
+                }).unwrap_or(NewState::Undef);
+                Transition {
+                    new_state: new_transition_state,
+                    .. old_transition
+                }
+            } else {
+                Transition {
+                    new_state: NewState::Undef,
+                    out: false,
+                    dir: Dir::L,
+                }
+            }
+
+        });
+
+        // println!("new");
+        // for row in transitions {
+        //     println!("{:?}", row);
+        // }
+
+        MachineDescription { transitions }
+    }
 }
 
 pub struct Machine {
@@ -69,14 +213,7 @@ pub struct Machine {
 
 impl Transition {
     pub fn state(&self) -> Option<State> {
-        match self.new_state {
-            NewState::Undef => None,
-            NewState::A => Some(State::A),
-            NewState::B => Some(State::B),
-            NewState::C => Some(State::C),
-            NewState::D => Some(State::D),
-            NewState::E => Some(State::E),
-        }
+        self.new_state.state()
     }
 }
 
@@ -123,7 +260,7 @@ impl Machine {
             }
         }
 
-        false
+            false
     }
 
     #[allow(dead_code)]
