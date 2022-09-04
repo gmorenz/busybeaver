@@ -18,8 +18,9 @@ pub fn decide<const MAX_STEPS: usize>(descr: MachineDescription) -> bool {
 
     // This is a map from (Dir, State, Bit) to a list of stored snapshots from previous times
     // we added a new
-    let breakpoint_set_index = |dir: Dir, state: State, bit: bool|
-        dir as usize * 5 * 2 + (state as usize - 1) * 2 + bit as usize;
+    let breakpoint_set_index = |dir: Dir, state: State, bit: bool| {
+        dir as usize * 5 * 2 + (state as usize - 1) * 2 + bit as usize
+    };
     let mut breakpoint_sets: [Vec<StoredSnapshot>; 20] = [(); 2 * 5 * 2].map(|_| Vec::new());
 
     let mut head_history = vec![];
@@ -34,7 +35,7 @@ pub fn decide<const MAX_STEPS: usize>(descr: MachineDescription) -> bool {
             || (transition.dir == Dir::R && machine.head_offset + 1 == machine.tape.len());
 
         if is_breakpoint {
-            let bpi =  breakpoint_set_index(transition.dir, new_state, transition.out);
+            let bpi = breakpoint_set_index(transition.dir, new_state, transition.out);
             let breakpoint_set = &mut breakpoint_sets[bpi];
             let current_snapshot = StoredSnapshot::new(step, &machine);
 

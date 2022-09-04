@@ -12,7 +12,6 @@ fn main() {
     run_cyclers_translated();
 }
 
-
 #[allow(dead_code)]
 /// Regenerates a specific translated-cyclers run, exactly.
 ///
@@ -43,9 +42,13 @@ fn run_cyclers_translated() {
         res
     });
     let count = db::write_index(
-        format!("cyclers-translated-index-time-{}-minIndex-{start_idx}", 1000),
-        iter
-    ).unwrap();
+        format!(
+            "cyclers-translated-index-time-{}-minIndex-{start_idx}",
+            1000
+        ),
+        iter,
+    )
+    .unwrap();
     println!("Decided {count}, had to use more steps on {tried_more_on}");
 }
 
