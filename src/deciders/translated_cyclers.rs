@@ -2,8 +2,6 @@ use std::ops::Range;
 
 use crate::machine::{Dir, Machine, MachineDescription, State};
 
-pub const MAX_STEPS: usize = 10000;
-
 /// Checks if there is a translated cycle
 ///
 /// We do this by, as described in https://discuss.bbchallenge.org/t/decider-translated-cyclers/34
@@ -15,7 +13,7 @@ pub const MAX_STEPS: usize = 10000;
 /// the last time we've done this.
 ///
 /// If so, we're in a cycle, we're just going to keep adding on more of those translated segments.
-pub fn decide(descr: MachineDescription) -> bool {
+pub fn decide<const MAX_STEPS: usize>(descr: MachineDescription) -> bool {
     let mut machine = Machine::new(descr);
 
     // This is a map from (Dir, State, Bit) to a list of stored snapshots from previous times
@@ -137,12 +135,14 @@ fn test_positive_results() {
     for index in indices {
         let descr = db.read(index).unwrap();
 
-        println!("\n{index}");
-        for row in descr.transitions {
-            println!("{row:?}");
-        }
+        if !decide::<1_000>(descr.clone()) {
+            eprintln!("\n{index}");
+            for row in descr.transitions {
+                eprintln!("{row:?}");
+            }
 
-        assert!(decide(descr));
+            panic!();
+        }
     }
 }
 
@@ -155,7 +155,7 @@ fn test_large_positive_results() {
 
     for index in indices {
         let descr = db.read(index).unwrap();
-        assert!(decide(descr));
+        assert!(decide::<10_000>(descr));
     }
 }
 
@@ -169,6 +169,6 @@ fn test_negative_results() {
 
     for index in indices {
         let descr = db.read(index).unwrap();
-        assert!(!decide(descr));
+        assert!(!decide::<1_000>(descr));
     }
 }

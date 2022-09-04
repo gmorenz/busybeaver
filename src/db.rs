@@ -78,6 +78,21 @@ impl<D: Seek + Read> Db<D> {
 
         Ok(MachineDescription::from_bytes(machine_bytes).clone())
     }
+
+    #[allow(dead_code)]
+    pub fn full_index(&self) -> impl IntoIterator<Item=u32> {
+        0.. self.header.undecided_total
+    }
+
+    #[allow(dead_code)]
+    pub fn time_index(&self) -> impl IntoIterator<Item=u32> {
+        0.. self.header.undecided_time_count
+    }
+
+    #[allow(dead_code)]
+    pub fn size_index(&self) -> impl IntoIterator<Item=u32> {
+        self.header.undecided_time_count.. self.header.undecided_total
+    }
 }
 
 impl Index<File> {
@@ -131,6 +146,24 @@ pub fn load_default() -> (Db<File>, Index<File>) {
     let undecided_index = Index::open("bb5_undecided_index").expect("Failed to open index");
 
     (db, undecided_index)
+}
+
+/// Returns elements in lhs that aren't in rhs, assuming both are in sorted order.
+#[allow(dead_code)]
+pub fn subtract_index(lhs: impl IntoIterator<Item = u32>, rhs: impl IntoIterator<Item = u32>) -> impl IntoIterator<Item = u32> {
+    let mut lhs = lhs.into_iter();
+    let mut rhs = rhs.into_iter();
+    let mut rhs_next = rhs.next();
+    iter::from_fn(move || {
+        loop {
+            let lhs_next = lhs.next();
+            if rhs_next.is_some() && lhs_next == rhs_next {
+                rhs_next = rhs.next();
+                continue;
+            }
+            return lhs_next
+        }
+    })
 }
 
 #[test]
