@@ -44,6 +44,20 @@ pub struct MachineDescription {
     pub transitions: [Transition; 10],
 }
 
+pub struct Machine {
+    pub description: MachineDescription,
+    pub head_offset: usize,
+    pub cells_below_zero: usize,
+    pub state: State,
+    pub tape: Vec<bool>,
+}
+
+impl State {
+    pub fn index(self) -> usize {
+        self as usize - 1
+    }
+}
+
 impl MachineDescription {
     pub fn from_bytes(bytes: &[u8]) -> &MachineDescription {
         assert_eq!(bytes.len(), 30);
@@ -54,17 +68,9 @@ impl MachineDescription {
     }
 
     pub fn transition(&self, state: State, cell: bool) -> Transition {
-        let transition_index = (state as usize - 1) * 2 + cell as usize;
+        let transition_index = state.index() * 2 + cell as usize;
         self.transitions[transition_index]
     }
-}
-
-pub struct Machine {
-    pub description: MachineDescription,
-    pub head_offset: usize,
-    pub cells_below_zero: usize,
-    pub state: State,
-    pub tape: Vec<bool>,
 }
 
 impl Transition {
