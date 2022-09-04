@@ -7,9 +7,18 @@ pub mod deciders;
 mod machine;
 
 fn main() {
+    // Primitive method of choosing what to run by modifying main
+    run_cyclers();
     run_cyclers_translated();
 }
 
+
+#[allow(dead_code)]
+/// Regenerates a specific translated-cyclers run, exactly.
+///
+/// Our implementation takes more steps to find a cycle than the reference implementation sometimes,
+/// so if a machine is in the reference set and we don't get it after the same number of steps, we
+/// try twice as many.
 fn run_cyclers_translated() {
     let (mut db, _) = db::load_default();
 
@@ -47,9 +56,9 @@ fn run_cyclers() {
     println!("Checking index is sorted");
     undecided_index.assert_sorted();
 
-    println!("Running cyclers decider - on full set");
+    println!("Running cyclers decider - on machines that ran out of time");
     let undecided_time_count = db.header.undecided_time_count;
-    let iter = (0..undecided_time_count).filter(|&id| {
+    let iter = db.time_index().into_iter().filter(|&id| {
         let description = db.read(id).expect("Failed to read machine");
         deciders::cyclers::decide(description)
     });

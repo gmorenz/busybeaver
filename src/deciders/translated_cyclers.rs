@@ -41,7 +41,7 @@ pub fn decide<const MAX_STEPS: usize>(descr: MachineDescription) -> bool {
             // Check if we've already seen this position
             // TODO[perf]: Clever iteration order could make this substantially faster
             // (i.e. O(bp_count * step) to O(step)) by re-using leftmost/rightmost calculations
-            for ref bp_snapshot in breakpoint_set.iter() {
+            for bp_snapshot in breakpoint_set.iter() {
                 // Check if the tape from the farthest away cell modified, to the cell before the head
                 // is the same at the previous breakpoint, and this breakpoint. If they are, we're
                 // in a translated cycle.
